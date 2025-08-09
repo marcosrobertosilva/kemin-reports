@@ -4,13 +4,13 @@ SELECT
     f.[Facility],
     im.[Item type],
     im.[Make/buy code],
-    SUM(iw.[Safety stock]) AS [Safety Stock],
+    iwagg.[Safety Stock],
     SUM(f.[On-hand balance for inspection -facility]) AS [On-hand inspect],
-    SUM(iw.[On-hand balance approved]) AS [On-hand approved],
-    MAX(iw.[Reorder point]) AS [Reorder point],
+    iwagg.[On-hand approved],
+    iwagg.[Reorder point],
     MAX(im.[User-defined field 5 - item]) AS [User-defined field 5 - item],
-    SUM(iw.[Order quantity]) AS [Order quantity],
-    (SUM(f.[On-hand balance - facility]) - SUM(iw.[Order quantity])) AS [OH - Orders Available],
+    iwagg.[Order quantity],
+    (SUM(f.[On-hand balance - facility]) - iwagg.[Order quantity]) AS [OH - Orders Available],
     COUNT(DISTINCT(woh.[Manufacturing order number])) AS [MO's next 30 days],
     ROUND(ISNULL(ap.[Avg Monthly Production], 0), 0) AS [Avg Monthly Production],
     ROUND(ISNULL(
@@ -20,7 +20,6 @@ SELECT
     END,
     0
     ), 1) AS [Months of Stock],
-
     ROUND(ISNULL(
     CASE 
         WHEN ROUND(ISNULL(ap.[Avg Monthly Production], 0), 0) = 0 THEN NULL
@@ -28,15 +27,24 @@ SELECT
     END,
     0
     ), 0) AS [Days of Stock],
-
     ROUND(ISNULL(MAX(fc.[Avg Forecast Next 7 Months]), 0), 0) AS [Avg Forecast Next 7 Months]
-
+    
 FROM [PRD_Staging].[m3].[V_ItemFacility] f
 LEFT JOIN [PRD_Staging].[m3].[V_ItemMaster] im
     ON f.[Item number] = im.[Item number]
-LEFT JOIN [PRD_Staging].[m3].[V_ItemWarehouse] iw
-    ON f.[Item number] = iw.[Item number]
-    AND f.[Facility] = iw.[Facility]
+LEFT JOIN (
+    SELECT
+        [Item number],
+        [Facility],
+        SUM([On-hand balance approved]) AS [On-hand approved],
+        SUM([Safety stock]) AS [Safety Stock],
+        SUM([Order quantity]) AS [Order quantity],
+        MAX([Reorder point]) AS [Reorder point]
+    FROM [PRD_Staging].[m3].[V_ItemWarehouse]
+    GROUP BY [Item number], [Facility]
+) iwagg
+    ON f.[Item number] = iwagg.[Item number]
+    AND f.[Facility] = iwagg.[Facility]
 LEFT JOIN [PRD_Staging].[m3].[V_WorkOrderHead] woh
     ON f.[Item number] = woh.[Item number]
     AND f.[Facility] = woh.[Facility]
@@ -51,7 +59,6 @@ LEFT JOIN (
 ) ap
     ON f.[Item number] = ap.[Item number]
     AND f.[Facility] = ap.[Facility]
-
 LEFT JOIN (
     SELECT 
         [Item number],
@@ -63,12 +70,14 @@ LEFT JOIN (
 ) fc
     ON f.[Item number] = fc.[Item number]
 
--- WHERE f.[Facility] = 'NOA'
-WHERE f.[Item number] = '018173-21-WW'
 GROUP BY 
     f.[Item number],
     im.[Item name],
     f.[Facility],
     im.[Item type],
     im.[Make/buy code],
+    iwagg.[Safety Stock],
+    iwagg.[On-hand approved],
+    iwagg.[Reorder point],
+    iwagg.[Order quantity],
     ap.[Avg Monthly Production]
