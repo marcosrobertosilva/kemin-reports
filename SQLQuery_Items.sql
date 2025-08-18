@@ -12,18 +12,18 @@ SELECT
     ISNULL(col.[Past & next 30 days orders], 0) AS [Past & next 30 days orders],
     (SUM(f.[On-hand balance - facility]) - ISNULL(col.[Past & next 30 days orders], 0)) AS [OH - Orders Available],
     COUNT(DISTINCT(woh.[Manufacturing order number])) AS [MO's next 30 days],
-    ROUND(ISNULL(ap.[Avg Monthly Production], 0), 0) AS [Avg Monthly Production],
+    ROUND(ISNULL(ap.[12 months AVG Sales], 0), 0) AS [12 months AVG Sales],
     ROUND(ISNULL(
     CASE 
-        WHEN ROUND(ISNULL(ap.[Avg Monthly Production], 0), 0) = 0 THEN NULL
-        ELSE SUM(f.[On-hand balance - facility]) / ROUND(ISNULL(ap.[Avg Monthly Production], 0), 0)
+        WHEN ROUND(ISNULL(ap.[12 months AVG Sales], 0), 0) = 0 THEN NULL
+        ELSE SUM(f.[On-hand balance - facility]) / ROUND(ISNULL(ap.[12 months AVG Sales], 0), 0)
     END,
     0
     ), 1) AS [Months of Stock],
     ROUND(ISNULL(
     CASE 
-        WHEN ROUND(ISNULL(ap.[Avg Monthly Production], 0), 0) = 0 THEN NULL
-        ELSE SUM(f.[On-hand balance - facility]) / (ROUND(ISNULL(ap.[Avg Monthly Production], 0), 0) / 30.0)
+        WHEN ROUND(ISNULL(ap.[12 months AVG Sales], 0), 0) = 0 THEN NULL
+        ELSE SUM(f.[On-hand balance - facility]) / (ROUND(ISNULL(ap.[12 months AVG Sales], 0), 0) / 30.0)
     END,
     0
     ), 0) AS [Days of Stock],
@@ -61,7 +61,7 @@ LEFT JOIN (
     SELECT 
         [Facility],
         [Item number],
-        AVG(CAST([Manufactured quantity] AS FLOAT)) AS [Avg Monthly Production]
+        AVG(CAST([Manufactured quantity] AS FLOAT)) AS [12 months AVG Sales]
     FROM [PRD_Staging].[m3].[V_WorkOrderHead]
     WHERE [Actual finish date (ISO format)] >= DATEADD(MONTH, -12, GETDATE())
     GROUP BY [Facility], [Item number]
@@ -89,4 +89,4 @@ GROUP BY
     iwagg.[On-hand approved],
     iwagg.[Reorder point],
     col.[Past & next 30 days orders],
-    ap.[Avg Monthly Production]
+    ap.[12 months AVG Sales]
