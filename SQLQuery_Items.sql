@@ -9,8 +9,8 @@ SELECT
     iwagg.[On-hand approved],
     iwagg.[Reorder point],
     MAX(im.[User-defined field 5 - item]) AS [User-defined field 5 - item],
-    iwagg.[Order quantity],
-    (SUM(f.[On-hand balance - facility]) - iwagg.[Order quantity]) AS [OH - Orders Available],
+    ISNULL(col.[Past & next 30 days orders], 0) AS [Past & next 30 days orders],
+    (SUM(f.[On-hand balance - facility]) - ISNULL(col.[Past & next 30 days orders], 0)) AS [OH - Orders Available],
     COUNT(DISTINCT(woh.[Manufacturing order number])) AS [MO's next 30 days],
     ROUND(ISNULL(ap.[Avg Monthly Production], 0), 0) AS [Avg Monthly Production],
     ROUND(ISNULL(
@@ -38,13 +38,22 @@ LEFT JOIN (
         [Facility],
         SUM([On-hand balance approved]) AS [On-hand approved],
         SUM([Safety stock]) AS [Safety Stock],
-        SUM([Order quantity]) AS [Order quantity],
         MAX([Reorder point]) AS [Reorder point]
     FROM [PRD_Staging].[m3].[V_ItemWarehouse]
     GROUP BY [Item number], [Facility]
 ) iwagg
     ON f.[Item number] = iwagg.[Item number]
     AND f.[Facility] = iwagg.[Facility]
+LEFT JOIN (
+    SELECT
+        [Facility],
+        [Item number],
+        SUM([Ordered quantity - basic U/M]) AS [Past & next 30 days orders]
+    FROM [PRD_Staging].[m3].[V_CustomerOrderLines]
+    GROUP BY [Item number], [Facility]
+) col
+    ON f.[Item number] = col.[Item number]
+    AND f.[Facility] = col.[Facility]
 LEFT JOIN [PRD_Staging].[m3].[V_WorkOrderHead] woh
     ON f.[Item number] = woh.[Item number]
     AND f.[Facility] = woh.[Facility]
@@ -79,5 +88,5 @@ GROUP BY
     iwagg.[Safety Stock],
     iwagg.[On-hand approved],
     iwagg.[Reorder point],
-    iwagg.[Order quantity],
+    col.[Past & next 30 days orders],
     ap.[Avg Monthly Production]
